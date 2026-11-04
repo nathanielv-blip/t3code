@@ -1,3 +1,7 @@
+import { ProviderInstanceId } from "@t3tools/contracts";
+import { AcpRegistrySettings } from "../settings.ts";
+import * as Schema from "effect/Schema";
+import { buildCheckedAcpRegistrySnapshot } from "./driver.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { NodeServices } from "@effect/platform-node";
 import * as Effect from "effect/Effect";
@@ -5,8 +9,13 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientResponse from "effect/http/HttpClientResponse";
-import { kimiUsageResponseToLimits, readKimiUsageLimits } from "./kimiUsageLimits.ts";
+import {
+  kimiUsageResponseToLimits,
+  readKimiUsageLimits,
+  withKimiUsageLimits,
+} from "./kimiUsageLimits.ts";
 
+const decodeSettings = Schema.decodeSync(AcpRegistrySettings);
 const checkedAt = "2026-11-04T02:00:00.000Z";
 const response = {
   usages: {
@@ -119,6 +128,41 @@ describe("Kimi subscription limits", () => {
         }
         expect(fingerprints[0]).toBe(fingerprints[1]);
         expect(fingerprints[0]).toMatch(/^[a-f0-9]{64}$/);
+        const settings = decodeSettings({ agentId: "kimi" });
+        const provider = buildCheckedAcpRegistrySnapshot({
+          instanceId: ProviderInstanceId.make("kimi-test"),
+          displayName: undefined,
+          accentColor: undefined,
+          continuationKey: "kimi-test",
+          settings,
+          checkedAt,
+          inspection: { status: "ready", agentId: "kimi", version: "1", distribution: "binary" },
+        });
+        expect(provider.auth.status).toBe("unknown");
+        const enriched = yield* withKimiUsageLimits(
+          provider,
+          settings,
+          { KIMI_SHARE_DIR: home },
+          Effect.succeed(true),
+        ).pipe(Effect.provideService(HttpClient.HttpClient, client));
+        expect(enriched.usageLimits?.windows).toHaveLength(3);
+        for (const candidate of [
+          provider,
+          { ...provider, auth: { status: "unauthenticated" as const } },
+        ]) {
+          const skipped = yield* withKimiUsageLimits(
+            candidate,
+            settings,
+            { KIMI_SHARE_DIR: home },
+            Effect.succeed(false),
+          ).pipe(
+            Effect.provideService(
+              HttpClient.HttpClient,
+              HttpClient.make(() => Effect.die("must not probe an unconfirmed account")),
+            ),
+          );
+          expect(skipped.usageLimits).toBeUndefined();
+        }
         const refused = HttpClient.make(() =>
           Effect.die("must not send CLI credentials to a custom endpoint"),
         );

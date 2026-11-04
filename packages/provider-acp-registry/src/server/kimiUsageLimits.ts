@@ -1,6 +1,10 @@
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
-import type { ServerProviderUsageLimits, ServerProviderUsageWindow } from "@t3tools/contracts";
+import type {
+  ServerProvider,
+  ServerProviderUsageLimits,
+  ServerProviderUsageWindow,
+} from "@t3tools/contracts";
 import {
   clampPercent,
   makeUnavailableUsageLimits,
@@ -15,7 +19,8 @@ import * as Schema from "effect/Schema";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientRequest from "effect/http/HttpClientRequest";
 import * as HttpClientResponse from "effect/http/HttpClientResponse";
-import { kimiHomes } from "./kimiUsage.ts";
+import type { AcpRegistrySettings } from "../settings.ts";
+import { isKimiAgent, kimiHomes } from "./kimiUsage.ts";
 
 const Detail = Schema.Struct({
   used_ratio: Schema.optional(Schema.Unknown),
@@ -228,4 +233,21 @@ export const readKimiUsageLimits = Effect.fn("readKimiUsageLimits")(function* (
     );
   }
   return unavailable;
+});
+
+export const withKimiUsageLimits = Effect.fn("withKimiUsageLimits")(function* (
+  provider: ServerProvider,
+  settings: AcpRegistrySettings,
+  environment: NodeJS.ProcessEnv,
+  _confirmedAuthentication: Effect.Effect<boolean>,
+  refreshCredential?: Effect.Effect<void>,
+) {
+  if (
+    !isKimiAgent(settings) ||
+    !provider.enabled ||
+    !provider.installed ||
+    provider.auth.status !== "authenticated"
+  )
+    return provider;
+  return { ...provider, usageLimits: yield* readKimiUsageLimits(environment, refreshCredential) };
 });

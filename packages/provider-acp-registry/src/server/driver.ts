@@ -59,7 +59,7 @@ import * as AcpRegistryRuntimeCoordinator from "./AcpRegistryRuntimeCoordinator.
 import * as AcpRegistryAuth from "./auth.ts";
 import * as AcpRegistryAuthenticationState from "./authenticationState.ts";
 import { isKimiAgent, kimiUsageReader } from "./kimiUsage.ts";
-import { readKimiUsageLimits } from "./kimiUsageLimits.ts";
+import { withKimiUsageLimits } from "./kimiUsageLimits.ts";
 import * as Path from "effect/Path";
 import * as FileSystem from "effect/FileSystem";
 import * as HttpClient from "effect/http/HttpClient";
@@ -562,17 +562,17 @@ export const AcpRegistryDriver: ProviderDriver<
       }),
     ).pipe(Effect.timeout("15 seconds"), Effect.ignore);
     const withKimiLimits = (provider: ServerProvider) =>
-      isKimiAgent(effectiveConfig) &&
-      provider.enabled &&
-      provider.installed &&
-      provider.auth.status === "authenticated"
-        ? readKimiUsageLimits(processEnvironment, refreshKimiCredential).pipe(
-            Effect.map((usageLimits) => ({ ...provider, usageLimits })),
-            Effect.provideService(FileSystem.FileSystem, fileSystem),
-            Effect.provideService(Path.Path, path),
-            Effect.provideService(HttpClient.HttpClient, httpClient),
-          )
-        : Effect.succeed(provider);
+      withKimiUsageLimits(
+        provider,
+        effectiveConfig,
+        processEnvironment,
+        confirmedAuthentication.get,
+        refreshKimiCredential,
+      ).pipe(
+        Effect.provideService(FileSystem.FileSystem, fileSystem),
+        Effect.provideService(Path.Path, path),
+        Effect.provideService(HttpClient.HttpClient, httpClient),
+      );
     const orchestrationAdapter = yield* AcpRegistryAdapterV2Driver.create({
       instanceId,
       displayName,
