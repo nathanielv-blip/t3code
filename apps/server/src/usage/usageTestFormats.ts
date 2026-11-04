@@ -3,12 +3,13 @@ import type { TranscriptUsageFormat } from "@t3tools/provider-core/server/usage"
 import { piUsageFormat } from "@t3tools/provider-pi/server/usage";
 import { grokUsageFormat } from "@t3tools/provider-grok/server/usage";
 import { museUsageFormat } from "@t3tools/provider-muse/server/usage";
+import { kimiUsageFormat } from "@t3tools/provider-acp-registry/server/usage";
 
 import { claudeUsageFormat } from "../provider/Drivers/claudeUsage.ts";
 import { codexUsageFormat } from "../provider/Drivers/codexUsage.ts";
 
 export const TEST_FORMATS: Record<
-  "claude" | "codex" | "grok" | "pi" | "muse",
+  "claude" | "codex" | "grok" | "pi" | "muse" | "kimi",
   TranscriptUsageFormat<unknown>
 > = {
   claude: claudeUsageFormat,
@@ -16,6 +17,7 @@ export const TEST_FORMATS: Record<
   grok: grokUsageFormat,
   pi: piUsageFormat,
   muse: museUsageFormat,
+  kimi: kimiUsageFormat,
 };
 
 export const TEST_FORMAT_MAP = new Map<UsageProviderKind, TranscriptUsageFormat<unknown>>(

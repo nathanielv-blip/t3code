@@ -108,6 +108,40 @@ async function scan(
 }
 
 describe("large usage records", () => {
+  it("streams Kimi usage and keeps its file-derived session identity when resuming", async () => {
+    const entry = {
+      timestamp: 1793757885.812,
+      message: {
+        type: "StatusUpdate",
+        payload: {
+          token_usage: { input_other: 100, input_cache_read: 200, output: 30 },
+          message_id: "kimi-1",
+        },
+      },
+    };
+    const path = NodePath.join(dir, "wire.jsonl");
+    await NodeFSP.writeFile(path, JSON.stringify({ ...entry, padding: content }) + "\n");
+    const first = await readTranscriptRecords(path, "kimi");
+    expect(first?.records).toHaveLength(1);
+    expect(first?.records[0]?.sessionId).toBe(NodePath.basename(dir));
+    expect(first?.records[0]?.totals).toMatchObject({
+      uncachedInputTokens: 100,
+      cachedInputTokens: 200,
+      outputTokens: 30,
+    });
+    const next = {
+      ...entry,
+      message: { ...entry.message, payload: { ...entry.message.payload, message_id: "kimi-2" } },
+    };
+    await NodeFSP.appendFile(path, JSON.stringify(next) + "\n");
+    const resumed = await readTranscriptRecords(path, "kimi", first?.position);
+    expect(resumed?.resumed).toBe(true);
+    expect(resumed?.records[0]?.sessionId).toBe(first?.records[0]?.sessionId);
+    expect([...(first?.records ?? []), ...(resumed?.records ?? [])]).toEqual(
+      (await readTranscriptRecords(path, "kimi"))?.records,
+    );
+  });
+
   it("streams Muse completion envelopes and resumes a partial appended event", async () => {
     const entry = {
       schema_version: 1,

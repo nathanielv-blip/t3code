@@ -453,7 +453,9 @@ export function UsageLimitsSection({
               <View className="flex-row items-center gap-2 px-1">
                 <ProviderIcon provider={pool.driver} size={18} />
                 <Text className="text-base font-t3-medium text-foreground">
-                  {DRIVER_LABEL[pool.driver] ?? pool.driver}
+                  {pool.driver === "acpRegistry"
+                    ? (pool.accounts[0]?.displayName ?? "ACP Registry")
+                    : (DRIVER_LABEL[pool.driver] ?? pool.driver)}
                 </Text>
               </View>
               {windows.map((window) => {

@@ -114,6 +114,15 @@ setting removes it from `settings.json`.
 
 ## Track subscription limits
 
+Kimi Code reads token usage from local `wire.jsonl` session logs, including child sessions.
+Set `KIMI_SHARE_DIR` (legacy CLI) or `KIMI_CODE_HOME` in the Kimi provider's environment settings
+to read another home. Versions that omit model IDs show historical tokens under `unknown`,
+without an estimated cost; the current default model is not applied to past requests.
+Kimi accounts signed in through the CLI report subscription percentages and reset times,
+including five-hour and monthly allowances when available. API keys and custom endpoints
+do not report these limits. T3 asks the Kimi CLI to refresh expired credentials without running an
+agent prompt. If the login has been revoked, sign in to Kimi again and refresh Limits.
+
 **Usage → Limits** pools every subscription account it can see per provider, so with several Codex
 or Claude accounts across your enabled environments and hubs you read one number per window rather than a
 list. Each window card shows how much of the pool is left and a bar with one segment per account,

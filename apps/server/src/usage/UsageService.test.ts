@@ -487,6 +487,99 @@ describe("Codex usage history", () => {
 });
 
 describe("UsageService", () => {
+  it.live(
+    "aggregates Kimi parent and child histories once across shared provider homes and cached reads",
+    () =>
+      Effect.gen(function* () {
+        const { home, settings } = yield* setup;
+        const kimiHome = NodePath.join(home, "custom-kimi");
+        const timestamp = Date.parse("2026-08-01T10:00:00Z") / 1000;
+        const entry = (id: string, output: number) => ({
+          timestamp,
+          message: {
+            type: "StatusUpdate",
+            payload: {
+              message_id: id,
+              token_usage: { input_other: 100, input_cache_read: 200, output },
+            },
+          },
+        });
+        yield* Effect.promise(async () => {
+          const parent = NodePath.join(kimiHome, "sessions", "workspace", "parent");
+          const child = NodePath.join(parent, "subagents", "child");
+          await NodeFSP.mkdir(child, { recursive: true });
+          await NodeFSP.writeFile(
+            NodePath.join(parent, "wire.jsonl"),
+            [
+              entry("parent-1", 30),
+              {
+                timestamp,
+                message: {
+                  type: "SubagentEvent",
+                  payload: { event: entry("child-1", 40).message },
+                },
+              },
+            ]
+              .map((value) => JSON.stringify(value))
+              .join("\n") + "\n",
+          );
+          await NodeFSP.writeFile(
+            NodePath.join(child, "wire.jsonl"),
+            JSON.stringify(entry("child-1", 40)) + "\n",
+          );
+          await NodeFSP.writeFile(
+            NodePath.join(parent, "context.jsonl"),
+            JSON.stringify({ role: "_usage", token_count: 99999 }) + "\n",
+          );
+        });
+        const instance = {
+          driver: ProviderDriverKind.make("acpRegistry"),
+          config: { agentId: "kimi" },
+          environment: [{ name: "KIMI_SHARE_DIR", value: kimiHome, sensitive: false }],
+        };
+        yield* Effect.gen(function* () {
+          const service = yield* UsageService.make;
+          const first = yield* service.readSummary(WINDOW);
+          const buckets = first.buckets.filter((bucket) => bucket.provider === "kimi");
+          assert.strictEqual(buckets.length, 1);
+          assert.deepStrictEqual(buckets[0]?.totals, {
+            uncachedInputTokens: 200,
+            cachedInputTokens: 400,
+            cacheCreationTokens: 0,
+            outputTokens: 70,
+            reasoningTokens: 0,
+          });
+          assert.strictEqual(buckets[0]?.costSource, "unpriced");
+          assert.strictEqual(buckets[0]?.sessions, 2);
+          assert.strictEqual(
+            first.sources.find(
+              (source) =>
+                source.fingerprint.resolvedHomePath === NodePath.join(kimiHome, "sessions"),
+            )?.distinctSessions,
+            2,
+          );
+          yield* service.awaitPersisted;
+          assert.deepStrictEqual((yield* service.readSummary(WINDOW)).buckets, first.buckets);
+        }).pipe(
+          Effect.scoped,
+          Effect.provide(
+            layerService({
+              prefix: "usage-kimi",
+              home,
+              settings: {
+                ...settings,
+                providerInstances: {
+                  ...settings.providerInstances,
+                  [ProviderInstanceId.make("kimi-one")]: instance,
+                  [ProviderInstanceId.make("kimi-two")]: instance,
+                },
+              },
+            }),
+          ),
+        );
+      }).pipe(Effect.scoped),
+  );
+
   it.live("counts compressed Codex rollouts across refresh, rewrites, and cache restarts", () =>
     Effect.gen(function* () {
       const { home, settings } = yield* setup;

@@ -9,6 +9,11 @@ type UsageProviderPresentation = {
 };
 
 export const PROVIDER_PRESENTATION = {
+  kimi: {
+    label: "Kimi Code",
+    color: "#5985e1",
+    driverKind: ProviderDriverKind.make("acpRegistry"),
+  },
   codex: {
     label: "Codex",
     color: "var(--contrast-foreground)",
