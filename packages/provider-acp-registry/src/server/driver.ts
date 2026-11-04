@@ -205,10 +205,11 @@ function baseSnapshot(
       ? null
       : (resolveOfficialAcpRegistryIconUrl(input.probe?.probe.icon) ??
         officialAcpRegistryIconUrlForAgentId(input.settings.agentId));
+  const displayName = input.displayName ?? (isKimiAgent(input.settings) ? "Kimi Code" : undefined);
   return {
     instanceId: input.instanceId,
     driver: DRIVER_KIND,
-    ...(input.displayName ? { displayName: input.displayName } : {}),
+    ...(displayName ? { displayName } : {}),
     ...(input.accentColor ? { accentColor: input.accentColor } : {}),
     ...(iconUrl ? { iconUrl } : {}),
     continuation: { groupKey: input.continuationKey },
@@ -697,15 +698,16 @@ export const AcpRegistryDriver: ProviderDriver<
             Option.match({
               onNone: () => Effect.void,
               onSome: ({ provider, generation }) =>
-                liveSnapshotSemaphore.withPermit(
-                  Ref.get(enrichmentCache).pipe(
-                    Effect.flatMap((current) =>
-                      current.generation === generation
-                        ? withLiveRuntimeState(provider).pipe(
-                            Effect.flatMap(withKimiLimits),
-                            Effect.flatMap(publishSnapshot),
-                          )
-                        : Effect.void,
+                withKimiLimits(provider).pipe(
+                  Effect.flatMap((enriched) =>
+                    liveSnapshotSemaphore.withPermit(
+                      Ref.get(enrichmentCache).pipe(
+                        Effect.flatMap((current) =>
+                          current.generation === generation
+                            ? withLiveRuntimeState(enriched).pipe(Effect.flatMap(publishSnapshot))
+                            : Effect.void,
+                        ),
+                      ),
                     ),
                   ),
                 ),

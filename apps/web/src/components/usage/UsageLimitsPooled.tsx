@@ -573,7 +573,7 @@ function PoolSection({ pool, now }: { readonly pool: LimitPool; readonly now: nu
   const color = barColor(pool.driver);
   const label =
     pool.driver === "acpRegistry"
-      ? "Kimi Code"
+      ? (pool.accounts[0]?.displayName ?? "ACP Registry")
       : (providerClients.get(pool.driver)?.label ?? String(pool.driver));
   const windows = displayLimitWindows(pool);
   return (

@@ -454,7 +454,7 @@ export function UsageLimitsSection({
                 <ProviderIcon provider={pool.driver} size={18} />
                 <Text className="text-base font-t3-medium text-foreground">
                   {pool.driver === "acpRegistry"
-                    ? "Kimi Code"
+                    ? (pool.accounts[0]?.displayName ?? "ACP Registry")
                     : (DRIVER_LABEL[pool.driver] ?? pool.driver)}
                 </Text>
               </View>
