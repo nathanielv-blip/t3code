@@ -10,9 +10,11 @@ export const PROVIDER_ORDER: readonly UsageProviderKind[] = [
   "antigravity",
   "pi",
   "muse",
+  "kimi",
 ];
 
 export function usageProviderKind(driver: string): UsageProviderKind | null {
+  if (driver === "acpRegistry") return "kimi";
   if (driver === "claudeAgent") return "claude";
   return PROVIDER_ORDER.find((kind) => kind === driver) ?? null;
 }
@@ -26,6 +28,7 @@ export const PROVIDER_LABEL: Record<UsageProviderKind, string> = {
   antigravity: "Antigravity",
   pi: "Pi",
   muse: "Muse Code",
+  kimi: "Kimi Code",
 };
 
 export function useProviderColors(): Record<UsageProviderKind, string> {
@@ -39,6 +42,7 @@ export function useProviderColors(): Record<UsageProviderKind, string> {
     antigravity: "#8c7bd1",
     pi: "#4d9f8a",
     muse: "#0866ff",
+    kimi: "#5985e1",
   };
 }
 

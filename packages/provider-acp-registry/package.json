@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./server/usage": {
+      "types": "./src/server/kimiUsage.ts",
+      "import": "./src/server/kimiUsage.ts"
+    },
     "./client": {
       "types": "./src/client.ts",
       "import": "./src/client.ts"
