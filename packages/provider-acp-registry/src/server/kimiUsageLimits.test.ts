@@ -46,7 +46,7 @@ describe("Kimi subscription limits", () => {
           id: "limit_month_total",
           kind: "monthly",
           label: "Monthly total",
-          usedPercent: 6.73,
+          usedPercent: expect.closeTo(6.73, 8),
           resetsAt: "2026-12-05T00:00:00.000Z",
         },
       ],

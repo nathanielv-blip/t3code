@@ -114,7 +114,10 @@ export const kimiUsageFormat: TranscriptUsageFormat<typeof State.Type> = {
   parseProjected: parseRecord,
 };
 
-export const kimiUsageReader: ProviderUsageReader<AcpRegistrySettings, Path.Path> = {
+export const kimiUsageReader: Extract<
+  ProviderUsageReader<AcpRegistrySettings, Path.Path>,
+  { readonly kind: "transcripts" }
+> = {
   kind: "transcripts",
   provider: "kimi",
   format: kimiUsageFormat,
