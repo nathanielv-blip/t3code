@@ -637,10 +637,11 @@ export const AcpRegistryDriver: ProviderDriver<
             }),
           );
     });
-    const checkProvider = checkAcpRegistryProviderReadiness(readinessInput).pipe(
+    const checkReadiness = checkAcpRegistryProviderReadiness(readinessInput).pipe(
       Effect.provideService(AcpRegistrySupport.AcpRegistryCatalog, catalog),
       Effect.flatMap(withLiveRuntimeState),
     );
+    const checkProvider = checkReadiness.pipe(Effect.flatMap(withKimiLimits));
     const enrichProvider = checkAcpRegistryProviderStatus(
       {
         ...readinessInput,
@@ -704,7 +705,7 @@ export const AcpRegistryDriver: ProviderDriver<
       getSettings: snapshotSettings.getSettings,
       streamSettings: snapshotSettings.streamSettings,
       haveSettingsChanged: haveProviderSnapshotSettingsChanged,
-      initialSnapshot: () => checkProvider,
+      initialSnapshot: () => checkReadiness,
       checkProvider,
       enrichSnapshot: Effect.fn("enrichSnapshot")(function ({
         snapshot,
@@ -726,16 +727,12 @@ export const AcpRegistryDriver: ProviderDriver<
             Option.match({
               onNone: () => Effect.void,
               onSome: ({ provider, generation }) =>
-                withKimiLimits(provider).pipe(
-                  Effect.flatMap((enriched) =>
-                    liveSnapshotSemaphore.withPermit(
-                      Ref.get(enrichmentCache).pipe(
-                        Effect.flatMap((current) =>
-                          current.generation === generation
-                            ? withLiveRuntimeState(enriched).pipe(Effect.flatMap(publishSnapshot))
-                            : Effect.void,
-                        ),
-                      ),
+                liveSnapshotSemaphore.withPermit(
+                  Ref.get(enrichmentCache).pipe(
+                    Effect.flatMap((current) =>
+                      current.generation === generation
+                        ? withLiveRuntimeState(provider).pipe(Effect.flatMap(publishSnapshot))
+                        : Effect.void,
                     ),
                   ),
                 ),
