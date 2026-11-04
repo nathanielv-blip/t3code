@@ -147,6 +147,33 @@ describe("Kimi subscription limits", () => {
             Effect.provideService(HttpClient.HttpClient, unauthorized),
           )).unavailable?.reason,
         ).toBe("probeFailed");
+        yield* fs.writeFileString(
+          path.join(home, "credentials", "kimi-code.json"),
+          JSON.stringify({ access_token: "expired-token" }),
+        );
+        const refresh = fs
+          .writeFileString(
+            path.join(home, "credentials", "kimi-code.json"),
+            JSON.stringify({ access_token: "refreshed-token" }),
+          )
+          .pipe(Effect.orDie);
+        let requests = 0;
+        const retryClient = HttpClient.make((request) => {
+          requests++;
+          return Effect.succeed(
+            HttpClientResponse.fromWeb(
+              request,
+              request.headers.authorization === "Bearer expired-token"
+                ? new Response("Unauthorized", { status: 401 })
+                : Response.json(response),
+            ),
+          );
+        });
+        const renewed = yield* readKimiUsageLimits({ KIMI_SHARE_DIR: home }, refresh).pipe(
+          Effect.provideService(HttpClient.HttpClient, retryClient),
+        );
+        expect(renewed.windows).toHaveLength(3);
+        expect(requests).toBe(2);
       }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
   );
 });

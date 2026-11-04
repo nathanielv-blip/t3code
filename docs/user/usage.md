@@ -120,7 +120,8 @@ to read another home. Versions that omit model IDs show historical tokens under 
 without an estimated cost; the current default model is not applied to past requests.
 Kimi accounts signed in through the CLI report subscription percentages and reset times,
 including five-hour and monthly allowances when available. API keys and custom endpoints
-do not report these limits. If the CLI login expires, sign in to Kimi again and refresh Limits.
+do not report these limits. T3 asks the Kimi CLI to refresh expired credentials without running an
+agent prompt. If the login has been revoked, sign in to Kimi again and refresh Limits.
 
 **Usage → Limits** pools every subscription account it can see per provider, so with several Codex
 or Claude accounts across your enabled environments and hubs you read one number per window rather than a

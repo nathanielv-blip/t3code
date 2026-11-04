@@ -167,6 +167,7 @@ function accountFingerprint(token: string): string {
 
 export const readKimiUsageLimits = Effect.fn("readKimiUsageLimits")(function* (
   environment: NodeJS.ProcessEnv,
+  refreshCredential?: Effect.Effect<void>,
 ) {
   const checkedAt = DateTime.formatIso(yield* DateTime.now);
   const unavailable = makeUnavailableUsageLimits({
@@ -194,14 +195,26 @@ export const readKimiUsageLimits = Effect.fn("readKimiUsageLimits")(function* (
       .readFileString(path.join(home, "credentials", "kimi-code.json"))
       .pipe(Effect.flatMap(decodeCredentials), Effect.option);
     if (Option.isNone(credentials)) continue;
-    const token = credentials.value.access_token;
     return yield* Effect.gen(function* () {
       const client = yield* HttpClient.HttpClient;
-      const response = yield* client.execute(
+      let token = credentials.value.access_token;
+      let response = yield* client.execute(
         HttpClientRequest.get("https://api.kimi.com/coding/v1/usages").pipe(
           HttpClientRequest.bearerToken(token),
         ),
       );
+      if (response.status === 401 && refreshCredential) {
+        yield* refreshCredential;
+        const refreshed = yield* fs
+          .readFileString(path.join(home, "credentials", "kimi-code.json"))
+          .pipe(Effect.flatMap(decodeCredentials));
+        token = refreshed.access_token;
+        response = yield* client.execute(
+          HttpClientRequest.get("https://api.kimi.com/coding/v1/usages").pipe(
+            HttpClientRequest.bearerToken(token),
+          ),
+        );
+      }
       const body = yield* HttpClientResponse.schemaBodyJson(Schema.Unknown)(
         yield* HttpClientResponse.filterStatusOk(response),
       );
@@ -210,7 +223,7 @@ export const readKimiUsageLimits = Effect.fn("readKimiUsageLimits")(function* (
         credentialFingerprint: accountFingerprint(token),
       };
     }).pipe(
-      Effect.timeout("10 seconds"),
+      Effect.timeout("20 seconds"),
       Effect.orElseSucceed(() => unavailable),
     );
   }

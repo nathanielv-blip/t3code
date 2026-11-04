@@ -21,6 +21,7 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
+import * as ChildProcess from "effect/process/ChildProcess";
 
 import * as ProviderHost from "@t3tools/provider-core/server/ProviderHost";
 import { AcpRegistryAdapterV2Driver, type AcpRegistryAdapterV2DriverEnv } from "./adapter.ts";
@@ -533,12 +534,39 @@ export const AcpRegistryDriver: ProviderDriver<
       environment,
       hostEnvironment,
     );
+    const refreshKimiCredential = Effect.scoped(
+      Effect.gen(function* () {
+        const resolved = yield* catalog.resolve(
+          effectiveConfig,
+          host.paths.cwd,
+          processEnvironment,
+        );
+        if (resolved.spawn.args.at(-1) !== "acp") return;
+        // Empty Wire input refreshes credentials through Kimi's own lock, without sending a prompt.
+        const handle = yield* spawner.spawn(
+          ChildProcess.make(
+            resolved.spawn.command,
+            [...resolved.spawn.args.slice(0, -1), "--wire"],
+            {
+              cwd: resolved.spawn.cwd ?? host.paths.cwd,
+              env: resolved.spawn.env ?? processEnvironment,
+              extendEnv: false,
+              stdin: "ignore",
+              stdout: "ignore",
+              stderr: "ignore",
+              shell: false,
+            },
+          ),
+        );
+        yield* handle.exitCode;
+      }),
+    ).pipe(Effect.timeout("15 seconds"), Effect.ignore);
     const withKimiLimits = (provider: ServerProvider) =>
       isKimiAgent(effectiveConfig) &&
       provider.enabled &&
       provider.installed &&
       provider.auth.status === "authenticated"
-        ? readKimiUsageLimits(processEnvironment).pipe(
+        ? readKimiUsageLimits(processEnvironment, refreshKimiCredential).pipe(
             Effect.map((usageLimits) => ({ ...provider, usageLimits })),
             Effect.provideService(FileSystem.FileSystem, fileSystem),
             Effect.provideService(Path.Path, path),
