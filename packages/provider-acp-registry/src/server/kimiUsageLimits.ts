@@ -239,14 +239,14 @@ export const withKimiUsageLimits = Effect.fn("withKimiUsageLimits")(function* (
   provider: ServerProvider,
   settings: AcpRegistrySettings,
   environment: NodeJS.ProcessEnv,
-  _confirmedAuthentication: Effect.Effect<boolean>,
+  confirmedAuthentication: Effect.Effect<boolean>,
   refreshCredential?: Effect.Effect<void>,
 ) {
+  if (!isKimiAgent(settings) || !provider.enabled || !provider.installed) return provider;
+  // ACP discovery leaves auth unknown even after a persisted, successful sign-in.
   if (
-    !isKimiAgent(settings) ||
-    !provider.enabled ||
-    !provider.installed ||
-    provider.auth.status !== "authenticated"
+    provider.auth.status !== "authenticated" &&
+    (provider.auth.status !== "unknown" || !(yield* confirmedAuthentication))
   )
     return provider;
   return { ...provider, usageLimits: yield* readKimiUsageLimits(environment, refreshCredential) };

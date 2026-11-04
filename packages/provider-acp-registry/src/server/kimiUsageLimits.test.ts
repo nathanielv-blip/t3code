@@ -146,15 +146,15 @@ describe("Kimi subscription limits", () => {
           Effect.succeed(true),
         ).pipe(Effect.provideService(HttpClient.HttpClient, client));
         expect(enriched.usageLimits?.windows).toHaveLength(3);
-        for (const candidate of [
-          provider,
-          { ...provider, auth: { status: "unauthenticated" as const } },
-        ]) {
+        for (const [candidate, confirmed] of [
+          [provider, false],
+          [{ ...provider, auth: { status: "unauthenticated" as const } }, true],
+        ] as const) {
           const skipped = yield* withKimiUsageLimits(
             candidate,
             settings,
             { KIMI_SHARE_DIR: home },
-            Effect.succeed(false),
+            Effect.succeed(confirmed),
           ).pipe(
             Effect.provideService(
               HttpClient.HttpClient,
