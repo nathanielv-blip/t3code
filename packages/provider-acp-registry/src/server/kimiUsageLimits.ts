@@ -146,7 +146,9 @@ export function kimiUsageResponseToLimits(
       if (window) windows.push(window);
     }
   }
-  return makeUsageLimits({ checkedAt, windows });
+  return windows.length > 0
+    ? makeUsageLimits({ checkedAt, windows })
+    : makeUnavailableUsageLimits({ checkedAt, reason: "probeFailed" });
 }
 
 function accountFingerprint(token: string): string {

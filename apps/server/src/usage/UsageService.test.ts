@@ -535,7 +535,7 @@ describe("UsageService", () => {
         const instance = {
           driver: ProviderDriverKind.make("acpRegistry"),
           config: { agentId: "kimi" },
-          environment: { KIMI_SHARE_DIR: kimiHome },
+          environment: [{ name: "KIMI_SHARE_DIR", value: kimiHome, sensitive: false }],
         };
         yield* Effect.gen(function* () {
           const service = yield* UsageService.make;
